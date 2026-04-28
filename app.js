@@ -1,4 +1,5 @@
-const PRODUCT_PRICE = 34.99;
+const PRODUCT_PRICE_USD = 34.99;
+const FALLBACK_USD_TRY_RATE = 45;
 const API_BASE = window.DASH_API_BASE || "";
 const API_BASES = Array.from(new Set([API_BASE, "", "http://127.0.0.1:4193"].filter((value) => value !== null)));
 const SESSION_STORAGE_KEY = "dash-session-id";
@@ -109,6 +110,7 @@ const state = {
   quantity: 1,
   sessionId: getSessionId(),
   backendReady: false,
+  pricing: fallbackPricing(),
   cart: loadCart(),
   featureIndex: 0
 };
@@ -120,10 +122,12 @@ document.addEventListener("DOMContentLoaded", () => {
   renderThumbnails();
   renderStyleOptions();
   renderMedia();
+  renderPricing();
   renderCart();
   renderSearchResults(searchItems);
   bindEvents();
   syncFromQuery();
+  hydratePricing();
   hydrateBackendCart();
 });
 
@@ -159,6 +163,12 @@ function cacheDom() {
   dom.profileModal = document.querySelector("[data-profile-modal]");
   dom.profileModalImage = document.querySelector("[data-profile-modal-image]");
   dom.profileModalName = document.querySelector("[data-profile-modal-name]");
+  dom.productPrice = document.querySelector("[data-product-price]");
+  dom.salePrice = document.querySelector("[data-sale-price]");
+  dom.fxRate = document.querySelector("[data-fx-rate]");
+  dom.installmentThreshold = document.querySelector("[data-installment-threshold]");
+  dom.freeShippingThresholds = document.querySelectorAll("[data-free-shipping-threshold]");
+  dom.relatedPrices = document.querySelectorAll("[data-related-price]");
 }
 
 function bindEvents() {
@@ -301,6 +311,69 @@ function syncFromQuery() {
   if (match) {
     setVariant(match.key, false);
   }
+}
+
+async function hydratePricing() {
+  try {
+    const pricing = await apiRequest("/api/pricing");
+    applyPricing(pricing);
+  } catch {
+    applyPricing(state.pricing);
+  }
+}
+
+function applyPricing(pricing) {
+  state.pricing = {
+    ...fallbackPricing(),
+    ...pricing
+  };
+  const livePrice = Number(state.pricing.productPrice);
+  state.cart = state.cart.map((item) => ({
+    ...item,
+    price: Number.isFinite(livePrice) ? livePrice : item.price,
+    priceUsd: PRODUCT_PRICE_USD,
+    currency: "TRY",
+    exchangeRate: state.pricing.usdTryRate
+  }));
+  saveCart();
+  renderPricing();
+  renderCart();
+}
+
+function fallbackPricing() {
+  const productPrice = PRODUCT_PRICE_USD * FALLBACK_USD_TRY_RATE;
+  return {
+    baseCurrency: "USD",
+    currency: "TRY",
+    productPriceUsd: PRODUCT_PRICE_USD,
+    productPrice,
+    productPriceFormatted: formatMoney(productPrice),
+    usdTryRate: FALLBACK_USD_TRY_RATE,
+    usdTryRateFormatted: FALLBACK_USD_TRY_RATE.toFixed(4),
+    rateSource: "fallback",
+    installmentThreshold: 35 * FALLBACK_USD_TRY_RATE,
+    installmentThresholdFormatted: formatMoney(35 * FALLBACK_USD_TRY_RATE),
+    freeShippingThreshold: 50 * FALLBACK_USD_TRY_RATE,
+    freeShippingThresholdFormatted: formatMoney(50 * FALLBACK_USD_TRY_RATE)
+  };
+}
+
+function renderPricing() {
+  const pricing = state.pricing;
+  dom.productPrice.textContent = formatMoney(pricing.productPrice);
+  dom.salePrice.textContent = formatMoney(pricing.productPrice);
+  dom.installmentThreshold.textContent = formatMoney(pricing.installmentThreshold);
+  dom.freeShippingThresholds.forEach((item) => {
+    item.textContent = formatMoney(pricing.freeShippingThreshold);
+  });
+  dom.fxRate.textContent = `Canlı kur: 1 USD = ${formatRate(pricing.usdTryRate)} TL`;
+  dom.relatedPrices.forEach((item) => {
+    const usd = Number(item.dataset.relatedPrice);
+    if (!Number.isFinite(usd)) return;
+    const price = usd * Number(pricing.usdTryRate || FALLBACK_USD_TRY_RATE);
+    const prefix = item.dataset.relatedPrefix;
+    item.textContent = prefix ? `${prefix} ${formatMoney(price)}` : formatMoney(price);
+  });
 }
 
 function renderThumbnails() {
@@ -449,7 +522,10 @@ function buildCartItem(quantity) {
     name: state.selectedVariant.name,
     sku: state.selectedVariant.sku,
     image: allImages[state.selectedVariant.start - 1].src,
-    price: PRODUCT_PRICE,
+    price: state.pricing.productPrice,
+    priceUsd: PRODUCT_PRICE_USD,
+    currency: "TRY",
+    exchangeRate: state.pricing.usdTryRate,
     quantity: Math.max(1, quantity)
   };
 }
@@ -470,7 +546,7 @@ function renderCart() {
   dom.cartCount.hidden = count === 0;
   dom.cartEmpty.hidden = count > 0;
   dom.cartFilled.hidden = count === 0;
-  dom.cartTotal.textContent = `${formatMoney(total)} USD`;
+  dom.cartTotal.textContent = formatMoney(total);
 
   dom.cartItems.innerHTML = state.cart.map((item) => `
     <article class="cart-item" data-cart-key="${item.key}">
@@ -591,7 +667,13 @@ async function hydrateBackendCart() {
 function applyBackendCart(cart) {
   if (!cart || !Array.isArray(cart.items)) return;
   state.backendReady = true;
-  state.cart = cart.items;
+  state.cart = cart.items.map((item) => ({
+    ...item,
+    price: item.currency === "TRY" ? Number(item.price) || state.pricing.productPrice : state.pricing.productPrice,
+    priceUsd: item.priceUsd || PRODUCT_PRICE_USD,
+    currency: item.currency || "TRY",
+    exchangeRate: item.exchangeRate || state.pricing.usdTryRate
+  }));
 }
 
 async function startCheckout(items = null) {
@@ -806,7 +888,19 @@ function saveCart() {
 }
 
 function formatMoney(value) {
-  return `$${value.toFixed(2)}`;
+  return new Intl.NumberFormat("tr-TR", {
+    style: "currency",
+    currency: "TRY",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(Number(value) || 0);
+}
+
+function formatRate(value) {
+  return new Intl.NumberFormat("tr-TR", {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4
+  }).format(Number(value) || FALLBACK_USD_TRY_RATE);
 }
 
 function showToast(message) {

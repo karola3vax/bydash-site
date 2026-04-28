@@ -531,6 +531,13 @@ button {
   font-size: 13px;
 }
 
+.price-meta {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .payment-note {
   margin: 22px 0 0;
   color: var(--muted);

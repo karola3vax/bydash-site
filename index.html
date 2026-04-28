@@ -11,7 +11,7 @@
   <body>
     <a class="skip-link" href="#product-info">Ürün bilgilerine geç</a>
 
-    <div class="announcement">50 DOLAR VE ÜZERİ SİPARİŞLERDE ÜCRETSİZ KARGO</div>
+    <div class="announcement"><span data-free-shipping-threshold>Güncel kurla hesaplanan tutar</span> VE ÜZERİ SİPARİŞLERDE ÜCRETSİZ KARGO</div>
 
     <header class="site-header" data-header>
       <div class="header-inner">
@@ -132,9 +132,10 @@
 
           <div class="price-block">
             <span class="visually-hidden">Normal fiyat</span>
-            <span class="price">$34.99</span>
-            <span class="sale-line">Normal fiyat <s></s> İndirimli fiyat $34.99</span>
-            <p class="payment-note">35 dolar üzeri alışverişlerde <span class="iyzico-badge">iyzico</span> ile vade farksız taksit. <a href="https://www.iyzico.com" target="_blank" rel="noreferrer">İncele</a></p>
+            <span class="price" data-product-price>Güncelleniyor</span>
+            <span class="sale-line">Normal fiyat <s></s> İndirimli fiyat <span data-sale-price>Güncelleniyor</span></span>
+            <span class="price-meta" data-fx-rate>Canlı kur yükleniyor</span>
+            <p class="payment-note"><span data-installment-threshold>Güncel kurla hesaplanan tutar</span> üzeri alışverişlerde <span class="iyzico-badge">iyzico</span> ile vade farksız taksit. <a href="https://www.iyzico.com" target="_blank" rel="noreferrer">İncele</a></p>
           </div>
 
           <form class="product-form" data-product-form>
@@ -224,7 +225,7 @@
             </li>
             <li class="icon-with-text__item">
               <img src="assets/service/free-shipping.png" alt="Kargo ikonu">
-              <span>50 DOLAR ÜZERİ ÜCRETSİZ KARGO</span>
+              <span><span data-free-shipping-threshold>Güncel kurla hesaplanan tutar</span> ÜZERİ ÜCRETSİZ KARGO</span>
             </li>
           </ul>
         </aside>
@@ -450,7 +451,7 @@
                 <img src="assets/related/winnie-waffle.jpg" alt="Winnie the Pooh Mini Waffle Makinesi">
               </span>
               <span class="related-title">Winnie the Pooh Mini Waffle Makinesi</span>
-              <span class="related-price">$12.99</span>
+              <span class="related-price" data-related-price="12.99">Güncelleniyor</span>
             </a>
           </li>
           <li>
@@ -459,7 +460,7 @@
                 <img src="assets/related/fresh-pop-red.jpg" alt="Fresh Pop Mısır Patlatma Makinesi">
               </span>
               <span class="related-title">Fresh Pop Mısır Patlatma Makinesi</span>
-              <span class="related-price">$24.99</span>
+              <span class="related-price" data-related-price="24.99">Güncelleniyor</span>
             </a>
           </li>
           <li>
@@ -468,7 +469,7 @@
                 <img src="assets/related/my-mug-ice-cream.jpg" alt="My Mug Dondurma Makinesi">
               </span>
               <span class="related-title">My Mug Dondurma Makinesi</span>
-              <span class="related-price">$34.99'dan başlayan fiyatlarla</span>
+              <span class="related-price" data-related-price="34.99" data-related-prefix="Başlangıç fiyatı">Güncelleniyor</span>
             </a>
           </li>
           <li>
@@ -477,7 +478,7 @@
                 <img src="assets/related/peanuts-popcorn.jpg" alt="Peanuts Fresh Pop Mısır Patlatma Makinesi">
               </span>
               <span class="related-title">Peanuts&reg; Fresh Pop Mısır Patlatma Makinesi</span>
-              <span class="related-price">$34.99</span>
+              <span class="related-price" data-related-price="34.99">Güncelleniyor</span>
             </a>
           </li>
         </ul>
@@ -590,7 +591,7 @@
         <div class="cart-items" data-cart-items></div>
         <div class="cart-total">
           <span>Tahmini toplam</span>
-          <strong data-cart-total>$0.00 USD</strong>
+          <strong data-cart-total>₺0,00</strong>
         </div>
         <p>Vergi, indirim ve kargo tutarı ödeme adımında netleşir.</p>
         <button class="add-button" type="button" data-checkout>Ödemeye geç</button>

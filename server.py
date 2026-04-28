@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
 from urllib.parse import parse_qs, unquote, urlparse
+from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parent
@@ -20,7 +21,13 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", ROOT / ".data")).expanduser()
 DB_PATH = DATA_DIR / "store.json"
 DB_LOCK = Lock()
 
-PRODUCT_PRICE = 34.99
+PRODUCT_PRICE_USD = 34.99
+FREE_SHIPPING_THRESHOLD_USD = 50
+INSTALLMENT_THRESHOLD_USD = 35
+SHIPPING_USD = 6.95
+FALLBACK_USD_TRY_RATE = float(os.environ.get("FALLBACK_USD_TRY_RATE", "45.0"))
+FX_CACHE_SECONDS = int(os.environ.get("FX_CACHE_SECONDS", "1800"))
+FX_CACHE: dict[str, object] = {"rate": FALLBACK_USD_TRY_RATE, "source": "fallback", "timestamp": 0}
 
 VARIANTS = [
     {
@@ -132,20 +139,93 @@ def money(value: float) -> float:
     return round(value + 0.0000001, 2)
 
 
+def format_try(value: float) -> str:
+    formatted = f"{money(value):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"₺{formatted}"
+
+
+def fetch_json(url: str) -> dict:
+    request = Request(url, headers={"User-Agent": "bydash-localization/1.0"})
+    with urlopen(request, timeout=5) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def get_usd_try_rate() -> dict:
+    now = time.time()
+    if now - float(FX_CACHE.get("timestamp") or 0) < FX_CACHE_SECONDS:
+        return dict(FX_CACHE)
+
+    sources = [
+        ("open.er-api.com", "https://open.er-api.com/v6/latest/USD"),
+        ("frankfurter.app", "https://api.frankfurter.app/latest?from=USD&to=TRY"),
+    ]
+    for source, url in sources:
+        try:
+            data = fetch_json(url)
+            rate = float((data.get("rates") or {}).get("TRY"))
+            if rate > 0:
+                FX_CACHE.update({
+                    "rate": rate,
+                    "source": source,
+                    "timestamp": now,
+                    "updatedAt": data.get("time_last_update_utc") or data.get("date"),
+                })
+                return dict(FX_CACHE)
+        except Exception:
+            continue
+
+    FX_CACHE["timestamp"] = now
+    return dict(FX_CACHE)
+
+
+def price_try(usd_value: float, rate: float | None = None) -> float:
+    return money(usd_value * (rate or float(get_usd_try_rate()["rate"])))
+
+
+def pricing_payload() -> dict:
+    fx = get_usd_try_rate()
+    rate = float(fx["rate"])
+    product_try = price_try(PRODUCT_PRICE_USD, rate)
+    return {
+        "baseCurrency": "USD",
+        "currency": "TRY",
+        "productPriceUsd": PRODUCT_PRICE_USD,
+        "productPrice": product_try,
+        "productPriceFormatted": format_try(product_try),
+        "usdTryRate": rate,
+        "usdTryRateFormatted": f"{rate:.4f}",
+        "rateSource": fx.get("source"),
+        "rateUpdatedAt": fx.get("updatedAt"),
+        "installmentThreshold": price_try(INSTALLMENT_THRESHOLD_USD, rate),
+        "installmentThresholdFormatted": format_try(price_try(INSTALLMENT_THRESHOLD_USD, rate)),
+        "freeShippingThreshold": price_try(FREE_SHIPPING_THRESHOLD_USD, rate),
+        "freeShippingThresholdFormatted": format_try(price_try(FREE_SHIPPING_THRESHOLD_USD, rate)),
+    }
+
+
 def cart_payload(items: list[dict]) -> dict:
+    pricing = pricing_payload()
+    for item in items:
+        item["price"] = pricing["productPrice"]
+        item["priceUsd"] = PRODUCT_PRICE_USD
+        item["currency"] = "TRY"
+        item["exchangeRate"] = pricing["usdTryRate"]
     subtotal = money(sum(item["price"] * item["quantity"] for item in items))
-    shipping = 0 if subtotal >= 50 or subtotal == 0 else 6.95
-    tax = money(subtotal * 0.08)
+    free_shipping_threshold = pricing["freeShippingThreshold"]
+    shipping = 0 if subtotal >= free_shipping_threshold or subtotal == 0 else price_try(SHIPPING_USD, pricing["usdTryRate"])
+    tax = 0
     total = money(subtotal + shipping + tax)
     return {
         "items": items,
         "summary": {
-            "currency": "USD",
+            "currency": "TRY",
             "subtotal": subtotal,
             "shipping": money(shipping),
             "tax": tax,
             "total": total,
-            "freeShippingThreshold": 50,
+            "freeShippingThreshold": free_shipping_threshold,
+            "exchangeRate": pricing["usdTryRate"],
+            "exchangeRateSource": pricing["rateSource"],
         },
     }
 
@@ -156,13 +236,17 @@ def session_cart(db: dict, session_id: str) -> list[dict]:
 
 
 def make_cart_item(variant: dict, quantity: int) -> dict:
+    pricing = pricing_payload()
     return {
         "key": variant["key"],
         "id": variant["id"],
         "name": variant["name"],
         "sku": variant["sku"],
         "image": variant["image"],
-        "price": PRODUCT_PRICE,
+        "price": pricing["productPrice"],
+        "priceUsd": PRODUCT_PRICE_USD,
+        "currency": "TRY",
+        "exchangeRate": pricing["usdTryRate"],
         "quantity": quantity,
     }
 
@@ -202,11 +286,16 @@ class DashHandler(BaseHTTPRequestHandler):
             self.respond_json({"ok": True, "service": "dash-local-backend"})
             return
         if parsed.path == "/api/catalog":
+            pricing = pricing_payload()
             self.respond_json({
-                "price": PRODUCT_PRICE,
+                "price": pricing["productPrice"],
+                "pricing": pricing,
                 "variants": VARIANTS,
                 "searchItems": SEARCH_ITEMS,
             })
+            return
+        if parsed.path == "/api/pricing":
+            self.respond_json(pricing_payload())
             return
         if parsed.path == "/api/search":
             term = (query.get("q", [""])[0] or "").strip().lower()
@@ -402,11 +491,16 @@ class DashHandler(BaseHTTPRequestHandler):
         if not order:
             self.send_error(HTTPStatus.NOT_FOUND, "Sipariş bulunamadı")
             return
+        summary = order["summary"]
+        currency = summary.get("currency", "TRY")
+
+        def format_order_money(value: float) -> str:
+            return format_try(value) if currency == "TRY" else f"${money(value):.2f}"
+
         rows = "\n".join(
-            f"<li><span>{escape(item['name'])} x {item['quantity']}</span><strong>${item['price'] * item['quantity']:.2f}</strong></li>"
+            f"<li><span>{escape(item['name'])} x {item['quantity']}</span><strong>{format_order_money(item['price'] * item['quantity'])}</strong></li>"
             for item in order["items"]
         )
-        summary = order["summary"]
         status = "Ödeme tamamlandı" if order["status"] == "paid" else "Ödeme bekleniyor"
         disabled = "disabled" if order["status"] == "paid" else ""
         page = f"""<!doctype html>
@@ -438,10 +532,10 @@ class DashHandler(BaseHTTPRequestHandler):
       <p class="status" data-status>{escape(status)}</p>
       <ul>{rows}</ul>
       <dl>
-        <dt>Ara toplam</dt><dd>${summary['subtotal']:.2f}</dd>
-        <dt>Kargo</dt><dd>${summary['shipping']:.2f}</dd>
-        <dt>Vergi</dt><dd>${summary['tax']:.2f}</dd>
-        <dt><strong>Toplam</strong></dt><dd><strong>${summary['total']:.2f}</strong></dd>
+        <dt>Ara toplam</dt><dd>{format_order_money(summary['subtotal'])}</dd>
+        <dt>Kargo</dt><dd>{format_order_money(summary['shipping'])}</dd>
+        <dt>Vergi</dt><dd>{format_order_money(summary['tax'])}</dd>
+        <dt><strong>Toplam</strong></dt><dd><strong>{format_order_money(summary['total'])}</strong></dd>
       </dl>
       <button type="button" {disabled} data-pay>Ödemeyi tamamla</button>
       <p><a href="/">Mağazaya geri dön</a></p>
