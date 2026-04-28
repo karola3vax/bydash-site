@@ -28,6 +28,13 @@ SHIPPING_USD = 6.95
 FALLBACK_USD_TRY_RATE = float(os.environ.get("FALLBACK_USD_TRY_RATE", "45.0"))
 FX_CACHE_SECONDS = int(os.environ.get("FX_CACHE_SECONDS", "4"))
 FX_CACHE: dict[str, object] = {"rate": FALLBACK_USD_TRY_RATE, "source": "fallback", "timestamp": 0}
+DISCOUNT_CODES = {
+    "BURCU20": {
+        "rate": 0.20,
+        "label": "BURCU20",
+        "message": "BURCU20 kodu uygulandı. %20 indirim toplamdan düşüldü.",
+    }
+}
 
 VARIANTS = [
     {
@@ -182,6 +189,14 @@ def price_try(usd_value: float, rate: float | None = None) -> float:
     return money(usd_value * (rate or float(get_usd_try_rate()["rate"])))
 
 
+def normalize_discount_code(value: object) -> str:
+    return re.sub(r"[^A-Z0-9]", "", str(value or "").upper())
+
+
+def discount_for_code(value: object) -> dict | None:
+    return DISCOUNT_CODES.get(normalize_discount_code(value))
+
+
 def pricing_payload() -> dict:
     fx = get_usd_try_rate()
     rate = float(fx["rate"])
@@ -203,7 +218,7 @@ def pricing_payload() -> dict:
     }
 
 
-def cart_payload(items: list[dict]) -> dict:
+def cart_payload(items: list[dict], discount_code: str | None = None) -> dict:
     pricing = pricing_payload()
     for item in items:
         item["price"] = pricing["productPrice"]
@@ -212,14 +227,20 @@ def cart_payload(items: list[dict]) -> dict:
         item["exchangeRate"] = pricing["usdTryRate"]
     subtotal = money(sum(item["price"] * item["quantity"] for item in items))
     free_shipping_threshold = pricing["freeShippingThreshold"]
-    shipping = 0 if subtotal >= free_shipping_threshold or subtotal == 0 else price_try(SHIPPING_USD, pricing["usdTryRate"])
+    discount = discount_for_code(discount_code)
+    discount_amount = money(subtotal * discount["rate"]) if discount else 0
+    discounted_subtotal = money(max(0, subtotal - discount_amount))
+    shipping = 0 if discounted_subtotal >= free_shipping_threshold or subtotal == 0 else price_try(SHIPPING_USD, pricing["usdTryRate"])
     tax = 0
-    total = money(subtotal + shipping + tax)
+    total = money(discounted_subtotal + shipping + tax)
     return {
         "items": items,
         "summary": {
             "currency": "TRY",
             "subtotal": subtotal,
+            "discount": discount_amount,
+            "discountCode": discount["label"] if discount else "",
+            "discountRate": discount["rate"] if discount else 0,
             "shipping": money(shipping),
             "tax": tax,
             "total": total,
@@ -347,6 +368,10 @@ class DashHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/reviews":
             self.create_review(body)
             return
+        match = re.fullmatch(r"/api/orders/([^/]+)/discount", parsed.path)
+        if match:
+            self.apply_order_discount(match.group(1), body)
+            return
         match = re.fullmatch(r"/api/orders/([^/]+)/pay", parsed.path)
         if match:
             self.mark_order_paid(match.group(1))
@@ -470,6 +495,26 @@ class DashHandler(BaseHTTPRequestHandler):
             save_db(db)
         self.respond_json({"review": review, "message": "Yorumunuz kaydedildi."}, HTTPStatus.CREATED)
 
+    def apply_order_discount(self, order_id: str, body: dict) -> None:
+        code = normalize_discount_code(body.get("code"))
+        discount = discount_for_code(code)
+        if not discount:
+            self.respond_json({"error": "Bu indirim kodu geçerli değil."}, HTTPStatus.BAD_REQUEST)
+            return
+        with DB_LOCK:
+            db = load_db()
+            order = next((item for item in db["orders"] if item["id"] == order_id), None)
+            if not order:
+                self.respond_json({"error": "Sipariş bulunamadı."}, HTTPStatus.NOT_FOUND)
+                return
+            if order["status"] == "paid":
+                self.respond_json({"error": "Ödemesi tamamlanan siparişte indirim kodu değiştirilemez."}, HTTPStatus.BAD_REQUEST)
+                return
+            order["summary"] = cart_payload(order["items"], code)["summary"]
+            order["discountCode"] = discount["label"]
+            save_db(db)
+        self.respond_json({"order": order, "summary": order["summary"], "message": discount["message"]})
+
     def mark_order_paid(self, order_id: str) -> None:
         with DB_LOCK:
             db = load_db()
@@ -497,8 +542,22 @@ class DashHandler(BaseHTTPRequestHandler):
         def format_order_money(value: float) -> str:
             return format_try(value) if currency == "TRY" else f"${money(value):.2f}"
 
+        discount_amount = float(summary.get("discount") or 0)
+        discount_code = str(summary.get("discountCode") or "")
+        discount_row_class = "" if discount_amount > 0 else "is-hidden"
+        discount_label = f"İndirim ({escape(discount_code)})" if discount_code else "İndirim"
+        discount_message = f"{escape(discount_code)} kodu uygulandı." if discount_code else "BURCU20 kodunu deneyin."
         rows = "\n".join(
-            f"<li><span>{escape(item['name'])} x {item['quantity']}</span><strong>{format_order_money(item['price'] * item['quantity'])}</strong></li>"
+            f"""
+            <li class="checkout-item">
+              <img src="/{escape(item.get('image', 'assets/products/product-01.jpg'))}" alt="">
+              <div>
+                <strong>{escape(item['name'])}</strong>
+                <span>Fresh Pop Mısır Patlatma Makinesi</span>
+                <small>Adet: {item['quantity']}</small>
+              </div>
+              <b>{format_order_money(item['price'] * item['quantity'])}</b>
+            </li>"""
             for item in order["items"]
         )
         status = "Ödeme tamamlandı" if order["status"] == "paid" else "Ödeme bekleniyor"
@@ -510,40 +569,177 @@ class DashHandler(BaseHTTPRequestHandler):
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>iyzico Ödeme - {escape(order_id)}</title>
     <style>
-      body {{ margin:0; font-family: Arial, sans-serif; color:#003847; background:#f6fbfd; }}
-      main {{ width:min(720px, calc(100% - 32px)); margin:48px auto; background:#fff; border:1px solid #d7e5ea; padding:32px; }}
-      h1 {{ margin:0 0 8px; font-size:28px; }}
-      .badge {{ display:inline-block; background:#13a4d8; color:#fff; border-radius:16px; padding:4px 10px; font-weight:700; }}
-      ul {{ padding:0; list-style:none; border-top:1px solid #d7e5ea; margin:24px 0; }}
-      li {{ display:flex; justify-content:space-between; gap:16px; padding:14px 0; border-bottom:1px solid #d7e5ea; }}
-      dl {{ display:grid; grid-template-columns:1fr auto; gap:10px 18px; }}
-      dt, dd {{ margin:0; }}
-      button {{ width:100%; border:0; border-radius:999px; background:#13a4d8; color:#fff; padding:16px; font-weight:700; font-size:16px; cursor:pointer; }}
-      button:disabled {{ opacity:.5; cursor:default; }}
-      a {{ color:#003847; }}
-      .status {{ margin:20px 0; font-weight:700; }}
+      * {{ box-sizing: border-box; }}
+      body {{ margin:0; font-family: Arial, sans-serif; color:#003847; background:linear-gradient(180deg,#eef7fa 0,#f8fcfd 48%,#fff 100%); }}
+      a {{ color:#003847; text-underline-offset:3px; }}
+      .checkout-shell {{ width:min(1120px, calc(100% - 32px)); margin:40px auto; }}
+      .checkout-hero {{ display:flex; justify-content:space-between; gap:24px; align-items:flex-start; margin-bottom:22px; }}
+      .brand-row {{ display:flex; align-items:center; gap:12px; margin-bottom:16px; }}
+      .badge {{ display:inline-flex; align-items:center; min-height:32px; padding:5px 13px 6px; background:#13a4d8; color:#fff; border-radius:999px; font-weight:800; letter-spacing:.01em; box-shadow:0 10px 22px rgba(19,164,216,.22); }}
+      .secure {{ color:#426674; font-size:14px; margin:0; }}
+      h1 {{ margin:0 0 8px; font-size:34px; line-height:1.05; }}
+      h2 {{ margin:0 0 18px; font-size:18px; text-transform:uppercase; letter-spacing:.08em; }}
+      .status {{ margin:0; padding:9px 14px; border:1px solid #c9e1e8; border-radius:999px; background:#fff; font-weight:700; color:#0b5368; }}
+      .checkout-card {{ display:grid; grid-template-columns:minmax(0, 1.1fr) 420px; gap:22px; align-items:start; }}
+      .panel {{ background:#fff; border:1px solid #d7e5ea; box-shadow:0 18px 42px rgba(0,56,71,.08); }}
+      .order-panel {{ padding:28px; }}
+      .payment-panel {{ position:sticky; top:20px; padding:28px; }}
+      .order-meta {{ display:flex; justify-content:space-between; gap:16px; padding:14px 0 22px; color:#5f7a84; border-bottom:1px solid #d7e5ea; font-size:14px; }}
+      .item-list {{ padding:0; list-style:none; margin:0; }}
+      .checkout-item {{ display:grid; grid-template-columns:74px minmax(0, 1fr) auto; gap:16px; align-items:center; padding:18px 0; border-bottom:1px solid #e4eef2; }}
+      .checkout-item img {{ width:74px; height:74px; object-fit:contain; border:1px solid #e0edf1; background:#f8fbfc; }}
+      .checkout-item strong {{ display:block; font-size:16px; margin-bottom:5px; }}
+      .checkout-item span, .checkout-item small {{ display:block; color:#5f7a84; }}
+      .checkout-item b {{ font-size:16px; white-space:nowrap; }}
+      .discount-form {{ margin-top:24px; padding:18px; border:1px solid #d7e5ea; background:#f7fbfc; }}
+      .discount-form label {{ display:block; margin-bottom:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; font-size:12px; }}
+      .discount-control {{ display:grid; grid-template-columns:1fr auto; gap:10px; }}
+      .discount-control input {{ min-width:0; height:48px; padding:0 14px; border:1px solid #b9d2da; border-radius:999px; color:#003847; font:inherit; text-transform:uppercase; }}
+      .discount-control button {{ width:auto; min-width:118px; height:48px; padding:0 18px; }}
+      .discount-message {{ margin:10px 0 0; min-height:20px; color:#0b6f3a; font-size:13px; font-weight:700; }}
+      .discount-message.is-error {{ color:#c32222; }}
+      .payment-note {{ margin:0 0 20px; color:#5f7a84; line-height:1.6; }}
+      .summary-list {{ display:grid; gap:12px; margin:22px 0; padding:20px 0; border-top:1px solid #d7e5ea; border-bottom:1px solid #d7e5ea; }}
+      .summary-row {{ display:flex; justify-content:space-between; gap:18px; }}
+      .summary-row span {{ color:#5f7a84; }}
+      .summary-row strong {{ font-size:18px; }}
+      .summary-row.discount {{ color:#0b8a45; font-weight:700; }}
+      .summary-row.total {{ align-items:flex-end; padding-top:8px; }}
+      .summary-row.total strong {{ font-size:28px; }}
+      .is-hidden {{ display:none; }}
+      button {{ width:100%; border:0; border-radius:999px; background:#13a4d8; color:#fff; padding:16px; font-weight:800; font-size:16px; cursor:pointer; transition:transform .16s ease, background .16s ease; }}
+      button:hover {{ background:#078ec2; transform:translateY(-1px); }}
+      button:disabled {{ opacity:.55; cursor:default; transform:none; }}
+      .trust-list {{ display:grid; gap:9px; margin:18px 0 0; padding:0; list-style:none; color:#426674; font-size:13px; }}
+      .trust-list li::before {{ content:"✓"; margin-right:8px; color:#0b8a45; font-weight:800; }}
+      .back-link {{ display:inline-block; margin-top:22px; }}
+      @media (max-width: 860px) {{
+        .checkout-shell {{ margin:24px auto; }}
+        .checkout-hero {{ display:block; }}
+        .status {{ display:inline-block; margin-top:16px; }}
+        .checkout-card {{ grid-template-columns:1fr; }}
+        .payment-panel {{ position:static; }}
+      }}
+      @media (max-width: 560px) {{
+        h1 {{ font-size:28px; }}
+        .order-panel, .payment-panel {{ padding:20px; }}
+        .checkout-item {{ grid-template-columns:62px 1fr; }}
+        .checkout-item b {{ grid-column:2; }}
+        .discount-control {{ grid-template-columns:1fr; }}
+        .discount-control button {{ width:100%; }}
+      }}
     </style>
   </head>
   <body>
-    <main>
-      <p><span class="badge">iyzico</span></p>
-      <h1>Güvenli Ödeme</h1>
-      <p>Sipariş: {escape(order_id)}</p>
-      <p class="status" data-status>{escape(status)}</p>
-      <ul>{rows}</ul>
-      <dl>
-        <dt>Ara toplam</dt><dd>{format_order_money(summary['subtotal'])}</dd>
-        <dt>Kargo</dt><dd>{format_order_money(summary['shipping'])}</dd>
-        <dt>Vergi</dt><dd>{format_order_money(summary['tax'])}</dd>
-        <dt><strong>Toplam</strong></dt><dd><strong>{format_order_money(summary['total'])}</strong></dd>
-      </dl>
-      <button type="button" {disabled} data-pay>Ödemeyi tamamla</button>
-      <p><a href="/">Mağazaya geri dön</a></p>
+    <main class="checkout-shell">
+      <section class="checkout-hero">
+        <div>
+          <div class="brand-row"><span class="badge">iyzico</span><span class="secure">256-bit güvenli ödeme altyapısı</span></div>
+          <h1>Güvenli Ödeme</h1>
+          <p class="secure">Sipariş: <strong>{escape(order_id)}</strong></p>
+        </div>
+        <p class="status" data-status>{escape(status)}</p>
+      </section>
+
+      <section class="checkout-card">
+        <div class="panel order-panel">
+          <h2>Sipariş Özeti</h2>
+          <div class="order-meta">
+            <span>Disney | Dash</span>
+            <span>{len(order["items"])} ürün</span>
+          </div>
+          <ul class="item-list">{rows}</ul>
+          <form class="discount-form" data-discount-form>
+            <label for="discount-code">İndirim kodu</label>
+            <div class="discount-control">
+              <input id="discount-code" name="code" value="{escape(discount_code)}" placeholder="BURCU20" autocomplete="off">
+              <button type="submit">Uygula</button>
+            </div>
+            <p class="discount-message" data-discount-message>{discount_message}</p>
+          </form>
+        </div>
+
+        <aside class="panel payment-panel">
+          <h2>Ödeme</h2>
+          <p class="payment-note"><strong>iyzico</strong> ile ödeme adımına geçmeden önce sipariş tutarını kontrol edin. Kampanya kodunuz varsa burada uygulayabilirsiniz.</p>
+          <div class="summary-list">
+            <div class="summary-row"><span>Ara toplam</span><b data-summary-subtotal>{format_order_money(summary['subtotal'])}</b></div>
+            <div class="summary-row discount {discount_row_class}" data-discount-row><span data-discount-label>{discount_label}</span><b data-summary-discount>-{format_order_money(discount_amount)}</b></div>
+            <div class="summary-row"><span>Kargo</span><b data-summary-shipping>{format_order_money(summary['shipping'])}</b></div>
+            <div class="summary-row"><span>Vergi</span><b data-summary-tax>{format_order_money(summary['tax'])}</b></div>
+            <div class="summary-row total"><span>Toplam</span><strong data-summary-total>{format_order_money(summary['total'])}</strong></div>
+          </div>
+          <button type="button" {disabled} data-pay>Ödemeyi tamamla</button>
+          <ul class="trust-list">
+            <li>iyzico güvencesiyle ödeme deneyimi</li>
+            <li>BURCU20 koduyla %20 indirim</li>
+            <li>Sipariş sonrası sepet otomatik temizlenir</li>
+          </ul>
+        </aside>
+      </section>
+      <a class="back-link" href="/">Mağazaya geri dön</a>
     </main>
     <script>
-      const button = document.querySelector("[data-pay]");
-      button?.addEventListener("click", async () => {{
+      const orderId = "{escape(order_id)}";
+      const formatter = new Intl.NumberFormat("tr-TR", {{ style: "currency", currency: "TRY", minimumFractionDigits: 2, maximumFractionDigits: 2 }});
+      const payButton = document.querySelector("[data-pay]");
+      const discountForm = document.querySelector("[data-discount-form]");
+      const discountInput = document.querySelector("#discount-code");
+      const discountMessage = document.querySelector("[data-discount-message]");
+
+      function money(value) {{
+        return formatter.format(Number(value) || 0);
+      }}
+
+      function renderSummary(summary) {{
+        document.querySelector("[data-summary-subtotal]").textContent = money(summary.subtotal);
+        document.querySelector("[data-summary-shipping]").textContent = money(summary.shipping);
+        document.querySelector("[data-summary-tax]").textContent = money(summary.tax);
+        document.querySelector("[data-summary-total]").textContent = money(summary.total);
+        const discountRow = document.querySelector("[data-discount-row]");
+        const discountValue = Number(summary.discount) || 0;
+        if (discountValue > 0) {{
+          discountRow.classList.remove("is-hidden");
+          document.querySelector("[data-discount-label]").textContent = `İndirim (${{summary.discountCode}})`;
+          document.querySelector("[data-summary-discount]").textContent = `-${{money(discountValue)}}`;
+        }} else {{
+          discountRow.classList.add("is-hidden");
+        }}
+      }}
+
+      discountForm?.addEventListener("submit", async (event) => {{
+        event.preventDefault();
+        const code = discountInput.value.trim();
+        if (!code) {{
+          discountMessage.textContent = "İndirim kodunu girin.";
+          discountMessage.classList.add("is-error");
+          return;
+        }}
+        const button = discountForm.querySelector("button");
         button.disabled = true;
+        discountMessage.classList.remove("is-error");
+        discountMessage.textContent = "Kod kontrol ediliyor...";
+        try {{
+          const response = await fetch(`/api/orders/${{orderId}}/discount`, {{
+            method: "POST",
+            headers: {{ "Content-Type": "application/json" }},
+            body: JSON.stringify({{ code }})
+          }});
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "İndirim kodu uygulanamadı.");
+          renderSummary(data.summary);
+          discountInput.value = data.summary.discountCode || code.toUpperCase();
+          discountMessage.textContent = data.message || "İndirim kodu uygulandı.";
+        }} catch (error) {{
+          discountMessage.textContent = error.message;
+          discountMessage.classList.add("is-error");
+        }} finally {{
+          button.disabled = false;
+        }}
+      }});
+
+      payButton?.addEventListener("click", async () => {{
+        payButton.disabled = true;
         const response = await fetch("/api/orders/{escape(order_id)}/pay", {{ method: "POST" }});
         const data = await response.json();
         document.querySelector("[data-status]").textContent = data.message || "Ödeme tamamlandı.";
