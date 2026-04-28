@@ -1256,7 +1256,7 @@ button {
 
 .review-list article {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 0;
   overflow: hidden;
   border: 1px solid #dbe5e7;
@@ -1269,7 +1269,7 @@ button {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 22px 18px;
+  padding: 24px 22px;
   border: 0;
   border-right: 1px solid #dbe5e7;
   background: #f7faf9;
@@ -1279,27 +1279,44 @@ button {
 
 .review-list aside strong {
   color: var(--ink);
-  font-size: 13px;
+  font-size: 16px;
+  line-height: 1.25;
   font-weight: 700;
 }
 
 .review-author {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
+  margin-bottom: 8px;
 }
 
-.review-author img {
-  width: 42px;
-  height: 42px;
+.review-author img,
+.review-avatar {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
   object-fit: cover;
   border-radius: 50%;
   background: #fff;
+  border: 2px solid #dbe5e7;
 }
 
-.verified {
+.review-avatar {
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink);
+  background: #eaf6f8;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.verified,
+.review-status {
   color: var(--ink);
   font-weight: 700;
+  margin-left: 86px;
 }
 
 .verified::after {
@@ -1335,7 +1352,7 @@ button {
   grid-template-columns: 54px 1fr;
   align-items: center;
   gap: 12px;
-  margin: 18px 0 0;
+  margin: 20px 0 0;
   padding: 10px;
   border: 1px solid #e5ecee;
   border-radius: 6px;
@@ -2268,6 +2285,18 @@ button {
     min-height: auto;
     border-right: 0;
     border-bottom: 1px solid #dbe5e7;
+  }
+
+  .review-author img,
+  .review-avatar {
+    width: 64px;
+    height: 64px;
+    flex-basis: 64px;
+  }
+
+  .verified,
+  .review-status {
+    margin-left: 78px;
   }
 
   .review-content time {

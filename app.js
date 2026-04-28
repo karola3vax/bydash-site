@@ -718,8 +718,11 @@ function renderReviewArticle(review) {
   return `
     <article>
       <aside>
-        <strong>${escapeHtml(review.name || "Müşteri")}</strong>
-        <span>${review.verified ? "Satın alma doğrulandı" : "Yeni yorum"}</span>
+        <div class="review-author">
+          <span class="review-avatar" aria-hidden="true">${escapeHtml(getInitials(review.name || "Müşteri"))}</span>
+          <strong>${escapeHtml(review.name || "Müşteri")}</strong>
+        </div>
+        <span class="${review.verified ? "verified" : "review-status"}">${review.verified ? "Satın alma doğrulandı" : "Yeni yorum"}</span>
         <div class="review-product">
           <img src="${allImages[state.selectedVariant.start - 1].src}" alt="">
           <div>
@@ -747,6 +750,16 @@ function getSessionId() {
   const value = `sess_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   localStorage.setItem(SESSION_STORAGE_KEY, value);
   return value;
+}
+
+function getInitials(name) {
+  return String(name)
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0] || "")
+    .join("")
+    .toLocaleUpperCase("tr-TR") || "M";
 }
 
 function loadCart() {
