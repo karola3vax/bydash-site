@@ -171,6 +171,8 @@ function cacheDom() {
   dom.profileModalImage = document.querySelector("[data-profile-modal-image]");
   dom.profileModalName = document.querySelector("[data-profile-modal-name]");
   dom.productPrice = document.querySelector("[data-product-price]");
+  dom.productPriceTry = document.querySelector("[data-product-price-try]");
+  dom.productPriceUsd = document.querySelector("[data-product-price-usd]");
   dom.salePrice = document.querySelector("[data-sale-price]");
   dom.fxRate = document.querySelector("[data-fx-rate]");
   dom.installmentThreshold = document.querySelector("[data-installment-threshold]");
@@ -416,7 +418,8 @@ function fallbackPricing() {
 function renderPricing() {
   const pricing = state.pricing;
   const displayPricing = state.displayPricing || pricing;
-  dom.productPrice.textContent = `${formatMoney(displayPricing.productPrice)} (${formatUsd(pricing.productPriceUsd)})`;
+  dom.productPriceTry.textContent = formatMoney(displayPricing.productPrice);
+  dom.productPriceUsd.textContent = `(${formatUsd(pricing.productPriceUsd)})`;
   dom.salePrice.textContent = formatMoney(displayPricing.productPrice);
   dom.installmentThreshold.textContent = formatMoney(pricing.installmentThreshold);
   dom.freeShippingThresholds.forEach((item) => {
@@ -433,12 +436,12 @@ function renderPricing() {
 }
 
 function flashPrice(direction) {
-  dom.productPrice.classList.remove("is-up", "is-down");
-  void dom.productPrice.offsetWidth;
-  dom.productPrice.classList.add(direction === "up" ? "is-up" : "is-down");
+  dom.productPriceTry.classList.remove("is-up", "is-down");
+  void dom.productPriceTry.offsetWidth;
+  dom.productPriceTry.classList.add(direction === "up" ? "is-up" : "is-down");
   window.clearTimeout(flashPrice.timeout);
   flashPrice.timeout = window.setTimeout(() => {
-    dom.productPrice.classList.remove("is-up", "is-down");
+    dom.productPriceTry.classList.remove("is-up", "is-down");
   }, 1000);
 }
 

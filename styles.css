@@ -521,20 +521,28 @@ button {
 
 .price {
   display: inline-block;
+  font-size: 18px;
+}
+
+.price-value {
+  display: inline-block;
   padding: 2px 8px;
   margin-left: -8px;
-  font-size: 18px;
   transition: background-color 180ms ease, color 180ms ease;
 }
 
-.price.is-down {
+.price-value.is-down {
   color: #d31313;
   background: #fdecec;
 }
 
-.price.is-up {
+.price-value.is-up {
   color: #0a8b3c;
   background: #eaf8ee;
+}
+
+.price-usd {
+  color: var(--ink);
 }
 
 .sale-line {
