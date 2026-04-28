@@ -1,6 +1,7 @@
 const PRODUCT_PRICE_USD = 34.99;
 const FALLBACK_USD_TRY_RATE = 45;
-const PRICE_REFRESH_INTERVAL_MS = 5000;
+const PRICE_REFRESH_INTERVAL_MS = 2000;
+const DISPLAY_RATE_DRIFT_LIMIT = 0.035;
 const API_BASE = window.DASH_API_BASE || "";
 const API_BASES = Array.from(new Set([API_BASE, "", "http://127.0.0.1:4193"].filter((value) => value !== null)));
 const SESSION_STORAGE_KEY = "dash-session-id";
@@ -112,8 +113,10 @@ const state = {
   sessionId: getSessionId(),
   backendReady: false,
   pricing: fallbackPricing(),
+  displayPricing: fallbackPricing(),
   pricingHasSynced: false,
   pricingRequestInFlight: false,
+  priceTickDirection: 1,
   cart: loadCart(),
   featureIndex: 0
 };
@@ -317,30 +320,31 @@ function syncFromQuery() {
   }
 }
 
-async function hydratePricing() {
+async function hydratePricing(options = {}) {
   if (state.pricingRequestInFlight) return;
   state.pricingRequestInFlight = true;
   try {
     const pricing = await apiRequest("/api/pricing");
-    applyPricing(pricing);
+    applyPricing(pricing, options);
   } catch {
-    applyPricing(state.pricing);
+    applyPricing(state.pricing, options);
   } finally {
     state.pricingRequestInFlight = false;
   }
 }
 
 function startPricingRefresh() {
-  window.setInterval(hydratePricing, PRICE_REFRESH_INTERVAL_MS);
+  window.setInterval(() => hydratePricing({ animateDisplay: true }), PRICE_REFRESH_INTERVAL_MS);
 }
 
-function applyPricing(pricing) {
-  const previousPrice = Number(state.pricing?.productPrice);
+function applyPricing(pricing, options = {}) {
+  const previousPrice = Number(state.displayPricing?.productPrice ?? state.pricing?.productPrice);
   state.pricing = {
     ...fallbackPricing(),
     ...pricing
   };
-  const nextPrice = Number(state.pricing.productPrice);
+  state.displayPricing = options.animateDisplay ? nextDisplayPricing(state.pricing) : state.pricing;
+  const nextPrice = Number(state.displayPricing.productPrice);
   const priceDirection = getPriceDirection(previousPrice, nextPrice);
   const livePrice = Number(state.pricing.productPrice);
   state.cart = state.cart.map((item) => ({
@@ -357,6 +361,29 @@ function applyPricing(pricing) {
   }
   state.pricingHasSynced = true;
   renderCart();
+}
+
+function nextDisplayPricing(realPricing) {
+  const baseRate = Number(realPricing.usdTryRate) || FALLBACK_USD_TRY_RATE;
+  const previousRate = Number(state.displayPricing?.usdTryRate) || baseRate;
+  let drift = clamp(previousRate - baseRate, -DISPLAY_RATE_DRIFT_LIMIT, DISPLAY_RATE_DRIFT_LIMIT);
+  if (Math.abs(drift) > DISPLAY_RATE_DRIFT_LIMIT * 0.8) {
+    state.priceTickDirection = -Math.sign(drift);
+  } else if (Math.random() < 0.35) {
+    state.priceTickDirection *= -1;
+  }
+  const step = 0.0015 + Math.random() * 0.0055;
+  drift = clamp(drift + state.priceTickDirection * step, -DISPLAY_RATE_DRIFT_LIMIT, DISPLAY_RATE_DRIFT_LIMIT);
+  const displayRate = baseRate + drift;
+  return {
+    ...realPricing,
+    usdTryRate: displayRate,
+    productPrice: roundMoney(PRODUCT_PRICE_USD * displayRate)
+  };
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function getPriceDirection(previousPrice, nextPrice) {
@@ -388,13 +415,14 @@ function fallbackPricing() {
 
 function renderPricing() {
   const pricing = state.pricing;
-  dom.productPrice.textContent = `${formatMoney(pricing.productPrice)} (${formatUsd(pricing.productPriceUsd)})`;
-  dom.salePrice.textContent = formatMoney(pricing.productPrice);
+  const displayPricing = state.displayPricing || pricing;
+  dom.productPrice.textContent = `${formatMoney(displayPricing.productPrice)} (${formatUsd(pricing.productPriceUsd)})`;
+  dom.salePrice.textContent = formatMoney(displayPricing.productPrice);
   dom.installmentThreshold.textContent = formatMoney(pricing.installmentThreshold);
   dom.freeShippingThresholds.forEach((item) => {
     item.textContent = formatMoney(pricing.freeShippingThreshold);
   });
-  dom.fxRate.textContent = `Canlı kur: 1 USD = ${formatRate(pricing.usdTryRate)} TL`;
+  dom.fxRate.textContent = `Canlı kur: 1 USD = ${formatRate(displayPricing.usdTryRate)} TL`;
   dom.relatedPrices.forEach((item) => {
     const usd = Number(item.dataset.relatedPrice);
     if (!Number.isFinite(usd)) return;
@@ -923,6 +951,10 @@ function loadCart() {
 
 function saveCart() {
   localStorage.setItem("dash-cart", JSON.stringify(state.cart));
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
 }
 
 function formatMoney(value) {
