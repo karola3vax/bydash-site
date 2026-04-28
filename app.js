@@ -723,11 +723,11 @@ function renderReviewArticle(review) {
         <div class="review-product">
           <img src="${allImages[state.selectedVariant.start - 1].src}" alt="">
           <div>
-            <span class="reviewing">Yorumlanan ürün</span>
+            <span class="reviewing">Değerlendirilen ürün</span>
             <a href="#">${escapeHtml(review.product || "Fresh Pop Mısır Patlatma Makinesi")}</a>
           </div>
         </div>
-        <p>Tavsiye ederim.</p>
+        <p>Bu ürünü tavsiye ederim.</p>
       </aside>
       <div class="review-content">
         <div class="review-stars" aria-label="5 üzerinden ${rating} yıldız">${stars}</div>
@@ -735,7 +735,7 @@ function renderReviewArticle(review) {
         <h3>${escapeHtml(review.title || "")}</h3>
         <p>${escapeHtml(review.body || "")}</p>
         <button type="button">Devamını oku</button>
-        <small>Bu yorum faydalı oldu mu? <span>Evet 0</span> <span>Hayır 0</span></small>
+        <small>Bu yorumu faydalı buldunuz mu? <span>Evet 0</span> <span>Hayır 0</span></small>
       </div>
     </article>
   `;
