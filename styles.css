@@ -118,15 +118,45 @@ button {
 }
 
 .announcement {
-  min-height: 34px;
-  display: grid;
-  place-items: center;
-  padding: 8px 12px;
-  color: var(--ink);
-  background: var(--soft-2);
-  font-size: 12px;
+  min-height: 38px;
+  overflow: hidden;
+  color: #fff;
+  background: #000;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.announcement-track {
+  width: max-content;
+  min-width: 200%;
+  display: flex;
+  align-items: center;
+  gap: 34px;
+  padding: 10px 0;
+  animation: announcement-marquee 38s linear infinite;
+}
+
+.announcement-track span {
+  flex: 0 0 auto;
+}
+
+.announcement-track > span::after {
+  content: "-";
+  margin-left: 34px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+@keyframes announcement-marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .site-header {
@@ -2207,10 +2237,19 @@ button {
   }
 
   .announcement {
-    font-size: 10px;
-    line-height: 1.3;
-    text-align: center;
-    letter-spacing: 0.06em;
+    min-height: 36px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+
+  .announcement-track {
+    gap: 24px;
+    padding: 9px 0;
+    animation-duration: 30s;
+  }
+
+  .announcement-track > span::after {
+    margin-left: 24px;
   }
 
   .breadcrumbs {
