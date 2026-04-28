@@ -1,6 +1,6 @@
 const PRODUCT_PRICE_USD = 34.99;
 const FALLBACK_USD_TRY_RATE = 45;
-const PRICE_REFRESH_INTERVAL_MS = 2000;
+const PRICE_REFRESH_INTERVAL_MS = 4000;
 const DISPLAY_RATE_DRIFT_LIMIT = 0.18;
 const API_BASE = window.DASH_API_BASE || "";
 const API_BASES = Array.from(new Set([API_BASE, "", "http://127.0.0.1:4193"].filter((value) => value !== null)));
