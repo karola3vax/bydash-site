@@ -156,6 +156,9 @@ function cacheDom() {
   dom.reviewModal = document.querySelector("[data-review-modal]");
   dom.reviewForm = document.querySelector("[data-review-form]");
   dom.reviewList = document.querySelector("[data-review-list]");
+  dom.profileModal = document.querySelector("[data-profile-modal]");
+  dom.profileModalImage = document.querySelector("[data-profile-modal-image]");
+  dom.profileModalName = document.querySelector("[data-profile-modal-name]");
 }
 
 function bindEvents() {
@@ -202,6 +205,7 @@ function bindEvents() {
       closeMediaModal();
       closeSearch();
       closeReviewModal();
+      closeProfileModal();
     }
     if (dom.mediaModal.classList.contains("is-active") && event.key === "ArrowRight") {
       moveMedia(1);
@@ -252,6 +256,15 @@ function bindEvents() {
   document.querySelector("[data-open-review-form]").addEventListener("click", openReviewModal);
   document.querySelector("[data-close-review-form]").addEventListener("click", closeReviewModal);
   dom.reviewForm.addEventListener("submit", submitReview);
+  document.querySelector("[data-close-profile]").addEventListener("click", closeProfileModal);
+  dom.profileModal.addEventListener("click", (event) => {
+    if (event.target === dom.profileModal) closeProfileModal();
+  });
+  dom.reviewList.addEventListener("click", (event) => {
+    const author = event.target.closest("[data-profile-image]");
+    if (!author) return;
+    openProfileModal(author.dataset.profileImage, author.dataset.profileName || author.textContent.trim());
+  });
 
   document.querySelector("[data-review-sort]").addEventListener("change", (event) => {
     showToast(`${event.target.value} seçildi`);
@@ -399,7 +412,7 @@ function openMediaModal() {
 function closeMediaModal() {
   dom.mediaModal.classList.remove("is-active");
   dom.mediaModal.setAttribute("aria-hidden", "true");
-  if (!dom.overlay.classList.contains("is-active") && !dom.searchModal.classList.contains("is-active")) {
+  if (!dom.overlay.classList.contains("is-active") && !dom.searchModal.classList.contains("is-active") && !dom.profileModal.classList.contains("is-active")) {
     dom.body.classList.remove("drawer-open");
   }
 }
@@ -533,7 +546,7 @@ function openSearch() {
 function closeSearch() {
   dom.searchModal.classList.remove("is-active");
   dom.searchModal.setAttribute("aria-hidden", "true");
-  if (!dom.mediaModal.classList.contains("is-active") && !dom.overlay.classList.contains("is-active")) {
+  if (!dom.mediaModal.classList.contains("is-active") && !dom.overlay.classList.contains("is-active") && !dom.profileModal.classList.contains("is-active")) {
     dom.body.classList.remove("drawer-open");
   }
 }
@@ -668,7 +681,25 @@ function openReviewModal() {
 function closeReviewModal() {
   dom.reviewModal.classList.remove("is-active");
   dom.reviewModal.setAttribute("aria-hidden", "true");
-  if (!dom.mediaModal.classList.contains("is-active") && !dom.overlay.classList.contains("is-active") && !dom.searchModal.classList.contains("is-active")) {
+  if (!dom.mediaModal.classList.contains("is-active") && !dom.overlay.classList.contains("is-active") && !dom.searchModal.classList.contains("is-active") && !dom.profileModal.classList.contains("is-active")) {
+    dom.body.classList.remove("drawer-open");
+  }
+}
+
+function openProfileModal(src, name) {
+  if (!src) return;
+  dom.profileModalImage.src = src;
+  dom.profileModalImage.alt = `${name} profil fotoğrafı`;
+  dom.profileModalName.textContent = name;
+  dom.profileModal.classList.add("is-active");
+  dom.profileModal.setAttribute("aria-hidden", "false");
+  dom.body.classList.add("drawer-open");
+}
+
+function closeProfileModal() {
+  dom.profileModal.classList.remove("is-active");
+  dom.profileModal.setAttribute("aria-hidden", "true");
+  if (!dom.mediaModal.classList.contains("is-active") && !dom.overlay.classList.contains("is-active") && !dom.searchModal.classList.contains("is-active") && !dom.reviewModal.classList.contains("is-active")) {
     dom.body.classList.remove("drawer-open");
   }
 }

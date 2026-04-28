@@ -339,10 +339,10 @@
         <div class="review-list" data-review-list>
           <article>
             <aside>
-              <div class="review-author">
+              <button class="review-author" type="button" data-profile-image="https://raw.githubusercontent.com/karola3vax/server-assets/refs/heads/main/Screenshot_4.png" data-profile-name="Furkan Çakı" aria-label="Furkan Çakı profil fotoğrafını büyüt">
                 <img src="https://raw.githubusercontent.com/karola3vax/server-assets/refs/heads/main/Screenshot_4.png" alt="Furkan Çakı profil fotoğrafı">
                 <strong>Furkan Çakı</strong>
-              </div>
+              </button>
               <span class="verified">Satın alma doğrulandı</span>
               <div class="review-product">
                 <img src="assets/styles/red.jpg" alt="">
@@ -365,10 +365,10 @@
           </article>
           <article>
             <aside>
-              <div class="review-author">
+              <button class="review-author" type="button" data-profile-image="https://raw.githubusercontent.com/karola3vax/server-assets/refs/heads/main/Screenshot_2.png" data-profile-name="Buğra Coşkun" aria-label="Buğra Coşkun profil fotoğrafını büyüt">
                 <img src="https://raw.githubusercontent.com/karola3vax/server-assets/refs/heads/main/Screenshot_2.png" alt="Buğra Coşkun profil fotoğrafı">
                 <strong>Buğra Coşkun</strong>
-              </div>
+              </button>
               <div class="review-product">
                 <img src="assets/styles/white.jpg" alt="">
                 <span>
@@ -389,10 +389,10 @@
           </article>
           <article>
             <aside>
-              <div class="review-author">
+              <button class="review-author" type="button" data-profile-image="https://github.com/karola3vax/server-assets/blob/main/Screenshot_1.png?raw=true" data-profile-name="Batuğ Emir Şahin" aria-label="Batuğ Emir Şahin profil fotoğrafını büyüt">
                 <img src="https://github.com/karola3vax/server-assets/blob/main/Screenshot_1.png?raw=true" alt="Batuğ Emir Şahin profil fotoğrafı">
                 <strong>Batuğ Emir Şahin</strong>
-              </div>
+              </button>
               <span class="verified">Satın alma doğrulandı</span>
               <div class="review-product">
                 <img src="assets/styles/red.jpg" alt="">
@@ -414,10 +414,10 @@
           </article>
           <article>
             <aside>
-              <div class="review-author">
+              <button class="review-author" type="button" data-profile-image="https://raw.githubusercontent.com/karola3vax/server-assets/refs/heads/main/Screenshot_3.png" data-profile-name="Alphan Yaman" aria-label="Alphan Yaman profil fotoğrafını büyüt">
                 <img src="https://raw.githubusercontent.com/karola3vax/server-assets/refs/heads/main/Screenshot_3.png" alt="Alphan Yaman profil fotoğrafı">
                 <strong>Alphan Yaman</strong>
-              </div>
+              </button>
               <span class="verified">Satın alma doğrulandı</span>
               <div class="review-product">
                 <img src="assets/styles/aqua.jpg" alt="">
@@ -613,6 +613,14 @@
       <img src="assets/products/product-01.jpg" alt="" data-modal-image>
       <button class="media-nav next" type="button" aria-label="Sonraki görsel" data-media-next>›</button>
       <div class="modal-count"><span data-modal-current>1</span> / <span data-modal-total>8</span></div>
+    </div>
+
+    <div class="profile-modal" data-profile-modal aria-hidden="true" role="dialog" aria-label="Profil fotoğrafı">
+      <button class="drawer-close" type="button" aria-label="Profil fotoğrafını kapat" data-close-profile>×</button>
+      <figure>
+        <img src="" alt="" data-profile-modal-image>
+        <figcaption data-profile-modal-name></figcaption>
+      </figure>
     </div>
 
     <div class="review-modal" data-review-modal aria-hidden="true" role="dialog" aria-label="Yorum yaz">
