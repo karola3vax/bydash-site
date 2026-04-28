@@ -1,7 +1,7 @@
 const PRODUCT_PRICE_USD = 34.99;
 const FALLBACK_USD_TRY_RATE = 45;
 const PRICE_REFRESH_INTERVAL_MS = 2000;
-const DISPLAY_RATE_DRIFT_LIMIT = 0.035;
+const DISPLAY_RATE_DRIFT_LIMIT = 0.18;
 const API_BASE = window.DASH_API_BASE || "";
 const API_BASES = Array.from(new Set([API_BASE, "", "http://127.0.0.1:4193"].filter((value) => value !== null)));
 const SESSION_STORAGE_KEY = "dash-session-id";
@@ -374,7 +374,7 @@ function nextDisplayPricing(realPricing) {
   } else if (Math.random() < 0.35) {
     state.priceTickDirection *= -1;
   }
-  const step = 0.0015 + Math.random() * 0.0055;
+  const step = 0.055 + Math.random() * 0.06;
   drift = clamp(drift + state.priceTickDirection * step, -DISPLAY_RATE_DRIFT_LIMIT, DISPLAY_RATE_DRIFT_LIMIT);
   const displayRate = baseRate + drift;
   return {
