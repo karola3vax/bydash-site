@@ -1,5 +1,6 @@
 const PRODUCT_PRICE_USD = 34.99;
 const FALLBACK_USD_TRY_RATE = 45;
+const PRICE_REFRESH_INTERVAL_MS = 5000;
 const API_BASE = window.DASH_API_BASE || "";
 const API_BASES = Array.from(new Set([API_BASE, "", "http://127.0.0.1:4193"].filter((value) => value !== null)));
 const SESSION_STORAGE_KEY = "dash-session-id";
@@ -111,6 +112,8 @@ const state = {
   sessionId: getSessionId(),
   backendReady: false,
   pricing: fallbackPricing(),
+  pricingHasSynced: false,
+  pricingRequestInFlight: false,
   cart: loadCart(),
   featureIndex: 0
 };
@@ -128,6 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   syncFromQuery();
   hydratePricing();
+  startPricingRefresh();
   hydrateBackendCart();
 });
 
@@ -314,19 +318,30 @@ function syncFromQuery() {
 }
 
 async function hydratePricing() {
+  if (state.pricingRequestInFlight) return;
+  state.pricingRequestInFlight = true;
   try {
     const pricing = await apiRequest("/api/pricing");
     applyPricing(pricing);
   } catch {
     applyPricing(state.pricing);
+  } finally {
+    state.pricingRequestInFlight = false;
   }
 }
 
+function startPricingRefresh() {
+  window.setInterval(hydratePricing, PRICE_REFRESH_INTERVAL_MS);
+}
+
 function applyPricing(pricing) {
+  const previousPrice = Number(state.pricing?.productPrice);
   state.pricing = {
     ...fallbackPricing(),
     ...pricing
   };
+  const nextPrice = Number(state.pricing.productPrice);
+  const priceDirection = getPriceDirection(previousPrice, nextPrice);
   const livePrice = Number(state.pricing.productPrice);
   state.cart = state.cart.map((item) => ({
     ...item,
@@ -337,7 +352,20 @@ function applyPricing(pricing) {
   }));
   saveCart();
   renderPricing();
+  if (state.pricingHasSynced && priceDirection) {
+    flashPrice(priceDirection);
+  }
+  state.pricingHasSynced = true;
   renderCart();
+}
+
+function getPriceDirection(previousPrice, nextPrice) {
+  if (!Number.isFinite(previousPrice) || !Number.isFinite(nextPrice)) return "";
+  const previous = Math.round(previousPrice * 100);
+  const next = Math.round(nextPrice * 100);
+  if (next > previous) return "up";
+  if (next < previous) return "down";
+  return "";
 }
 
 function fallbackPricing() {
@@ -360,7 +388,7 @@ function fallbackPricing() {
 
 function renderPricing() {
   const pricing = state.pricing;
-  dom.productPrice.textContent = formatMoney(pricing.productPrice);
+  dom.productPrice.textContent = `${formatMoney(pricing.productPrice)} (${formatUsd(pricing.productPriceUsd)})`;
   dom.salePrice.textContent = formatMoney(pricing.productPrice);
   dom.installmentThreshold.textContent = formatMoney(pricing.installmentThreshold);
   dom.freeShippingThresholds.forEach((item) => {
@@ -374,6 +402,16 @@ function renderPricing() {
     const prefix = item.dataset.relatedPrefix;
     item.textContent = prefix ? `${prefix} ${formatMoney(price)}` : formatMoney(price);
   });
+}
+
+function flashPrice(direction) {
+  dom.productPrice.classList.remove("is-up", "is-down");
+  void dom.productPrice.offsetWidth;
+  dom.productPrice.classList.add(direction === "up" ? "is-up" : "is-down");
+  window.clearTimeout(flashPrice.timeout);
+  flashPrice.timeout = window.setTimeout(() => {
+    dom.productPrice.classList.remove("is-up", "is-down");
+  }, 1000);
 }
 
 function renderThumbnails() {
@@ -896,10 +934,14 @@ function formatMoney(value) {
   }).format(Number(value) || 0);
 }
 
+function formatUsd(value) {
+  return `${(Number(value) || PRODUCT_PRICE_USD).toFixed(2)}$`;
+}
+
 function formatRate(value) {
   return new Intl.NumberFormat("tr-TR", {
-    minimumFractionDigits: 4,
-    maximumFractionDigits: 4
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   }).format(Number(value) || FALLBACK_USD_TRY_RATE);
 }
 

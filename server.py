@@ -26,7 +26,7 @@ FREE_SHIPPING_THRESHOLD_USD = 50
 INSTALLMENT_THRESHOLD_USD = 35
 SHIPPING_USD = 6.95
 FALLBACK_USD_TRY_RATE = float(os.environ.get("FALLBACK_USD_TRY_RATE", "45.0"))
-FX_CACHE_SECONDS = int(os.environ.get("FX_CACHE_SECONDS", "1800"))
+FX_CACHE_SECONDS = int(os.environ.get("FX_CACHE_SECONDS", "5"))
 FX_CACHE: dict[str, object] = {"rate": FALLBACK_USD_TRY_RATE, "source": "fallback", "timestamp": 0}
 
 VARIANTS = [
