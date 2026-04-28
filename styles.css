@@ -1283,6 +1283,20 @@ button {
   font-weight: 700;
 }
 
+.review-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.review-author img {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #fff;
+}
+
 .verified {
   color: var(--ink);
   font-weight: 700;
