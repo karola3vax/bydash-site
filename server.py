@@ -31,8 +31,9 @@ FX_CACHE: dict[str, object] = {"rate": FALLBACK_USD_TRY_RATE, "source": "fallbac
 DISCOUNT_CODES = {
     "BURCU20": {
         "rate": 0.20,
+        "freeShipping": True,
         "label": "BURCU20",
-        "message": "BURCU20 kodu uygulandı. %20 indirim toplamdan düşüldü.",
+        "message": "BURCU20 kodu uygulandı. %20 indirim ve ücretsiz kargo tanımlandı.",
     }
 }
 
@@ -230,7 +231,8 @@ def cart_payload(items: list[dict], discount_code: str | None = None) -> dict:
     discount = discount_for_code(discount_code)
     discount_amount = money(subtotal * discount["rate"]) if discount else 0
     discounted_subtotal = money(max(0, subtotal - discount_amount))
-    shipping = 0 if discounted_subtotal >= free_shipping_threshold or subtotal == 0 else price_try(SHIPPING_USD, pricing["usdTryRate"])
+    shipping = 0 if discount and discount.get("freeShipping") else price_try(SHIPPING_USD, pricing["usdTryRate"])
+    shipping = 0 if discounted_subtotal >= free_shipping_threshold or subtotal == 0 else shipping
     tax = 0
     total = money(discounted_subtotal + shipping + tax)
     return {
@@ -241,6 +243,7 @@ def cart_payload(items: list[dict], discount_code: str | None = None) -> dict:
             "discount": discount_amount,
             "discountCode": discount["label"] if discount else "",
             "discountRate": discount["rate"] if discount else 0,
+            "discountIncludesFreeShipping": bool(discount and discount.get("freeShipping")),
             "shipping": money(shipping),
             "tax": tax,
             "total": total,
@@ -533,6 +536,9 @@ class DashHandler(BaseHTTPRequestHandler):
         with DB_LOCK:
             db = load_db()
             order = next((item for item in db["orders"] if item["id"] == order_id), None)
+            if order and order["status"] != "paid" and order.get("summary", {}).get("discountCode"):
+                order["summary"] = cart_payload(order["items"], order["summary"]["discountCode"])["summary"]
+                save_db(db)
         if not order:
             self.send_error(HTTPStatus.NOT_FOUND, "Sipariş bulunamadı")
             return
@@ -546,7 +552,7 @@ class DashHandler(BaseHTTPRequestHandler):
         discount_code = str(summary.get("discountCode") or "")
         discount_row_class = "" if discount_amount > 0 else "is-hidden"
         discount_label = f"İndirim ({escape(discount_code)})" if discount_code else "İndirim"
-        discount_message = f"{escape(discount_code)} kodu uygulandı." if discount_code else "BURCU20 kodunu deneyin."
+        discount_message = f"{escape(discount_code)} kodu uygulandı. %20 indirim ve ücretsiz kargo tanımlandı." if discount_code else "BURCU20 kodunu deneyin."
         rows = "\n".join(
             f"""
             <li class="checkout-item">
@@ -672,7 +678,7 @@ class DashHandler(BaseHTTPRequestHandler):
           <button type="button" {disabled} data-pay>Ödemeyi tamamla</button>
           <ul class="trust-list">
             <li>iyzico güvencesiyle ödeme deneyimi</li>
-            <li>BURCU20 koduyla %20 indirim</li>
+            <li>BURCU20 koduyla %20 indirim ve ücretsiz kargo</li>
             <li>Sipariş sonrası sepet otomatik temizlenir</li>
           </ul>
         </aside>
