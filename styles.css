@@ -540,7 +540,7 @@ button {
 .rating-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   margin: 0 0 14px;
   padding: 0;
   border: 0;
@@ -578,6 +578,25 @@ button {
 
 .stars::after {
   display: none;
+}
+
+.rating-row .stars {
+  width: 108px;
+  height: 24px;
+  color: #eb0045;
+  font-size: 22px;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.rating-row .stars::before {
+  color: #eb0045;
+}
+
+.rating-row > span:last-child {
+  color: #3f5960;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .price-block {
