@@ -1196,22 +1196,28 @@ button {
 }
 
 .reviews {
-  width: min(100%, 943px);
-  padding: 26px 35px 56px 50px;
+  width: min(100%, 1100px);
+  padding: 34px 32px 56px;
   color: #2c3e50;
   font-size: 14px;
   line-height: 1.6;
 }
 
+.review-overview {
+  display: grid;
+  grid-template-columns: minmax(330px, 390px) minmax(0, 1fr);
+  align-items: end;
+  gap: 42px;
+  margin-bottom: 28px;
+}
+
 .review-summary {
   display: grid;
-  justify-content: center;
-  gap: 30px;
-  transform: translateX(-24px);
+  gap: 26px;
+  padding: 6px 0;
 }
 
 .review-score-line {
-  width: 350px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -1219,7 +1225,7 @@ button {
 }
 
 .review-score-line strong {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
   line-height: 1;
 }
@@ -1247,14 +1253,13 @@ button {
 }
 
 .review-bars {
-  width: 350px;
   display: grid;
   gap: 8px;
 }
 
 .review-bars div {
   display: grid;
-  grid-template-columns: 25px 277px 34px;
+  grid-template-columns: 26px minmax(180px, 1fr) 40px;
   align-items: center;
   gap: 12px;
   font-size: 12px;
@@ -1295,34 +1300,47 @@ button {
 }
 
 .recommend {
-  margin: 20px 0 26px;
+  margin: 0 0 26px;
   color: #2c3e50;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .recommend strong {
-  margin-right: 6px;
+  margin: 0 6px;
   color: var(--ink);
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 700;
 }
 
-.review-media-strip {
+.review-gallery-panel {
+  min-width: 0;
+}
+
+.review-media-wrap {
   position: relative;
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 120px;
-  gap: 4px;
   overflow: hidden;
-  margin-bottom: 24px;
+}
+
+.review-media-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+
+.review-media-strip::-webkit-scrollbar {
+  display: none;
 }
 
 .review-media-strip button {
-  width: 120px;
-  height: 120px;
+  width: 134px;
+  height: 134px;
+  flex: 0 0 134px;
   padding: 0;
   border: 0;
   background: #f4f5f5;
+  cursor: pointer;
 }
 
 .review-media-strip img {
@@ -1335,17 +1353,21 @@ button {
   position: absolute;
   top: 0;
   right: 0;
-  width: 32px !important;
-  background: rgba(255, 255, 255, 0.86) !important;
+  width: 44px !important;
+  height: 134px !important;
+  border: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.94) 38%, #fff) !important;
   color: transparent;
+  cursor: pointer;
 }
 
 .review-media-next::before {
   content: "";
   position: absolute;
-  inset: 48px 12px auto auto;
-  width: 9px;
-  height: 9px;
+  top: 61px;
+  right: 15px;
+  width: 11px;
+  height: 11px;
   border-top: 2px solid #2c3e50;
   border-right: 2px solid #2c3e50;
   transform: rotate(45deg);
@@ -1355,7 +1377,7 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 36px;
+  margin: 10px 0 36px;
 }
 
 .review-pill {
@@ -2245,19 +2267,6 @@ button {
     padding-left: 50px;
   }
 
-  .review-summary {
-    justify-content: start;
-    transform: none;
-  }
-
-  .recommend {
-    margin: -154px 0 26px 350px;
-  }
-
-  .review-media-strip {
-    margin-left: 350px;
-  }
-
   .review-content {
     min-height: 282px;
     padding-right: 244px;
@@ -2323,6 +2332,25 @@ button {
 
   .brand img {
     width: 108px;
+  }
+
+  .review-overview {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .review-media-strip button {
+    width: 118px;
+    height: 118px;
+    flex-basis: 118px;
+  }
+
+  .review-media-next {
+    height: 118px !important;
+  }
+
+  .review-media-next::before {
+    top: 53px;
   }
 
   .account-link {
@@ -2494,12 +2522,23 @@ button {
   }
 
   .review-media-strip {
-    grid-auto-columns: 98px;
+    gap: 5px;
   }
 
   .review-media-strip button {
     width: 98px;
     height: 98px;
+    flex-basis: 98px;
+  }
+
+  .review-media-next {
+    width: 38px !important;
+    height: 98px !important;
+  }
+
+  .review-media-next::before {
+    top: 43px;
+    right: 13px;
   }
 
   .review-actions,

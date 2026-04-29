@@ -289,6 +289,15 @@ function bindEvents() {
     showToast(`${event.target.value} seçildi`);
   });
 
+  document.querySelector("[data-review-media-next]")?.addEventListener("click", () => {
+    const strip = document.querySelector("[data-review-media-strip]");
+    if (!strip) return;
+    const firstItem = strip.querySelector("button");
+    const step = firstItem ? firstItem.getBoundingClientRect().width + 6 : 140;
+    const atEnd = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 4;
+    strip.scrollBy({ left: atEnd ? -strip.scrollWidth : step * 2, behavior: "smooth" });
+  });
+
   document.querySelectorAll("[data-newsletter]").forEach((form) => {
     form.addEventListener("submit", (event) => {
       event.preventDefault();
