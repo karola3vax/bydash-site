@@ -871,6 +871,68 @@ button {
   padding-left: 22px;
 }
 
+.warranty-details summary {
+  justify-content: flex-start;
+  gap: 12px;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 500;
+}
+
+.warranty-details summary::after,
+.warranty-details[open] summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-135deg);
+}
+
+.warranty-details:not([open]) summary::after {
+  transform: rotate(45deg);
+}
+
+.warranty-icon {
+  width: 21px;
+  height: 21px;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1.5px solid currentColor;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.accordions details > .warranty-content {
+  padding: 0 0 22px 38px;
+  color: #3f5960;
+}
+
+.warranty-content a {
+  display: block;
+  width: fit-content;
+  margin: 0 0 10px;
+  color: #2d4c54;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.warranty-content p {
+  max-width: 620px;
+  margin: 22px 0 0;
+  color: #4b646b;
+  font-size: 16px;
+  line-height: 1.65;
+  letter-spacing: 0.02em;
+}
+
 .warning {
   color: var(--ink);
   font-size: 13px;
