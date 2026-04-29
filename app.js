@@ -904,7 +904,7 @@ function renderReviewArticle(review) {
           <span class="review-avatar" aria-hidden="true">${escapeHtml(getInitials(review.name || "Müşteri"))}</span>
           <strong>${escapeHtml(review.name || "Müşteri")}</strong>
         </div>
-        <span class="${review.verified ? "verified" : "review-status"}">${review.verified ? "Satın alma doğrulandı" : "Yeni yorum"}</span>
+        <span class="${review.verified ? "verified" : "review-status"}">${review.verified ? "Ürünü satın aldı" : "Yeni yorum"}</span>
         <div class="review-product">
           <img src="${allImages[state.selectedVariant.start - 1].src}" alt="">
           <div>
