@@ -170,10 +170,10 @@ button {
 .header-inner {
   min-height: 100px;
   display: grid;
-  grid-template-columns: 160px 1fr 168px;
+  grid-template-columns: 180px 1fr 150px;
   align-items: center;
-  gap: 20px;
-  width: min(100%, 990px);
+  gap: 24px;
+  width: min(100%, 1048px);
   margin: 0 auto;
   padding: 0 24px;
 }
@@ -192,12 +192,12 @@ button {
 .desktop-nav {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 26px;
+  justify-content: flex-start;
+  gap: 28px;
   height: 100px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
 }
 
 .desktop-nav > a,
@@ -208,6 +208,7 @@ button {
   border: 0;
   background: transparent;
   text-transform: uppercase;
+  color: var(--ink);
 }
 
 .nav-item {
@@ -222,6 +223,18 @@ button {
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   transform: translateY(-2px) rotate(45deg);
+}
+
+.nav-item.is-open .nav-trigger,
+.nav-item:focus-within .nav-trigger {
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-thickness: 1px;
+}
+
+.nav-item.is-open .nav-trigger::after,
+.nav-item:focus-within .nav-trigger::after {
+  transform: translateY(2px) rotate(-135deg);
 }
 
 .nav-item:hover .mega-panel,
@@ -243,12 +256,24 @@ button {
   box-shadow: var(--shadow);
 }
 
+.mega-panel--shop {
+  padding: 0;
+  box-shadow: none;
+}
+
 .mega-inner {
   width: min(100%, 900px);
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 2fr 190px;
   gap: 28px;
+}
+
+.shop-mega {
+  width: min(100%, 1048px);
+  grid-template-columns: 142px 1fr;
+  gap: 40px;
+  padding: 28px 24px 34px;
 }
 
 .mega-inner.compact {
@@ -259,18 +284,28 @@ button {
 
 .mega-inner h3 {
   margin: 0 0 12px;
-  font-size: 13px;
+  color: #435c63;
+  font-size: 16px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .mega-inner a {
   display: block;
-  padding: 5px 0;
+  padding: 6px 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
+  line-height: 1.22;
   letter-spacing: 0;
   text-transform: none;
+}
+
+.mega-category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  column-gap: 54px;
+  row-gap: 0;
 }
 
 .mega-promo {
