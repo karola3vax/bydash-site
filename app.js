@@ -929,7 +929,7 @@ function renderReviewArticle(review) {
         <h3>${escapeHtml(review.title || "")}</h3>
         <p>${escapeHtml(review.body || "")}</p>
         <button type="button">Devamını oku</button>
-        <small>Bu yorumu faydalı buldunuz mu? <span>Evet 0</span> <span>Hayır 0</span></small>
+        <small>Bu değerlendirme faydalı mı? <span>Evet 0</span> <span>Hayır 0</span></small>
       </div>
     </article>
   `;
